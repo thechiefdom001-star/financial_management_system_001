@@ -1,4 +1,4 @@
-import AuthService from './authService.js';
+import AuthService from '/js/authService.js';
 
 // Export adminSettings so it can be imported by other modules
 export let adminSettings = {

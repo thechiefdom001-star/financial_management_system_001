@@ -1,4 +1,4 @@
-import NotificationManager from './notifications.js';
+import NotificationManager from '/js/notifications.js';
 
 class AuthService {
   static isLoggedIn() {
