@@ -19,6 +19,8 @@
   scrollbar-width: thin;  
   scrollbar-color: var(--primary-color) transparent;
   z-index: 1050;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -34,10 +36,16 @@
   border-radius: 3px;
 }
 
+.sidebar h5 {
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+}
+
 .sidebar .nav {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
 }
 
 .main-content {
@@ -63,6 +71,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 /* stronger shadow on hover for depth */
