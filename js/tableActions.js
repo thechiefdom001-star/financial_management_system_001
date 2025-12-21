@@ -1,5 +1,5 @@
-import AuthService from '/js/authService.js';
-import NotificationManager from '/js/notifications.js';
+import AuthService from './authService.js';
+import NotificationManager from './notifications.js';
 
 class TableActions {
   static async handleEdit(type, id) {

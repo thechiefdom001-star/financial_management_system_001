@@ -33,8 +33,9 @@ class TableManager {
       }
     });
 
-    // Get data rows
+    // Get data rows including footer totals if present
     let dataRows = [];
+    let footerTotal = null;
     if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
       const dt = $(`#${tableId}`).DataTable();
       const allRows = Array.from(dt.rows({ search: 'applied' }).nodes());
@@ -52,6 +53,19 @@ class TableManager {
           dataRows.push(rowData);
         }
       });
+      
+      // Get footer total if exists
+      const footerRow = table.querySelector('tfoot');
+      if (footerRow) {
+        const footerCells = footerRow.querySelectorAll('td');
+        const footerData = [];
+        for (let i = 0; i < footerCells.length - 1; i++) {
+          footerData.push(footerCells[i].textContent.trim());
+        }
+        if (footerData.length > 0) {
+          footerTotal = footerData;
+        }
+      }
     } else {
       // Regular table
       const tbody = table.querySelector('tbody');
@@ -215,6 +229,13 @@ class TableManager {
             </tr>
           `).join('')}
         </tbody>
+        ${footerTotal ? `
+          <tfoot>
+            <tr style="font-weight: bold; background-color: #f5f5f5;">
+              ${footerTotal.map(cell => `<td>${cell}</td>`).join('')}
+            </tr>
+          </tfoot>
+        ` : ''}
       </table>
     `;
 
@@ -256,22 +277,23 @@ class TableManager {
     if (!table) return;
 
     // Remove existing footer if any
-    const existingFooter = table.getElementsByTagName('tfoot')[0];
-    if (existingFooter) {
-      existingFooter.remove();
+    let footer = table.getElementsByTagName('tfoot')[0];
+    if (footer) {
+      footer.remove();
     }
 
-    const footer = table.createTFoot();
+    footer = table.createTFoot();
     const row = footer.insertRow();
+    row.style.backgroundColor = '#f5f5f5';
+    row.style.fontWeight = 'bold';
     
-    // Add "Total" label cell
-    const labelCell = row.insertCell();
-    labelCell.textContent = 'Total:';
-    labelCell.style.fontWeight = 'bold';
-    
-    // Add cells up to money column
-    for (let i = 1; i < columnIndex; i++) {
-      row.insertCell();
+    // Add cells up to money column with label in first cell
+    for (let i = 0; i < columnIndex; i++) {
+      const cell = row.insertCell();
+      if (i === 0) {
+        cell.textContent = 'TOTAL';
+        cell.style.fontWeight = 'bold';
+      }
     }
     
     // Add total amount cell
@@ -279,6 +301,7 @@ class TableManager {
     const total = this.calculateColumnTotal(table, columnIndex);
     totalCell.textContent = window.formatCurrency ? window.formatCurrency(total) : 'KES ' + total;
     totalCell.style.fontWeight = 'bold';
+    totalCell.style.color = '#28a745';
     
     // Add remaining empty cells
     const remainingCells = table.rows[0].cells.length - columnIndex - 1;
@@ -298,7 +321,17 @@ class TableManager {
         
         rows.each(function(value) {
           if (Array.isArray(value) && value[columnIndex]) {
-            const numValue = parseFloat(value[columnIndex].toString().replace(/[^0-9.-]+/g, ''));
+            const cellContent = value[columnIndex].toString();
+            // Try to find hidden numeric value first (for cells with badges)
+            const hiddenMatch = cellContent.match(/<span[^>]*display:\s*none[^>]*>(\d+)/);
+            let numValue;
+            
+            if (hiddenMatch) {
+              numValue = parseFloat(hiddenMatch[1]);
+            } else {
+              numValue = parseFloat(cellContent.replace(/[^0-9.-]+/g, ''));
+            }
+            
             if (!isNaN(numValue)) {
               total += numValue;
             }

@@ -1,4 +1,4 @@
-import AuthService from '/js/authService.js';
+import AuthService from './authService.js';
 
 // Export adminSettings so it can be imported by other modules
 export let adminSettings = {
@@ -13,7 +13,15 @@ export let adminSettings = {
   dateFormat: "MM/DD/YYYY",
   receiptFooter: "Thank you for choosing us!",
   primaryColor: "#007bff",
-  secondaryColor: "#6c757d"
+  secondaryColor: "#6c757d",
+  successColor: "#1cc88a",
+  infoColor: "#36b9cc",
+  warningColor: "#f6c23e",
+  dangerColor: "#e74a3b",
+  chartColor1: "#4e73df",
+  chartColor2: "#1cc88a",
+  chartColor3: "#36b9cc",
+  chartColor4: "#f6c23e"
 };
 
 function saveToLocalStorage(key, data) {
@@ -29,19 +37,31 @@ export function applyThemeColors() {
   const root = document.documentElement;
   root.style.setProperty('--primary-color', adminSettings.primaryColor);
   root.style.setProperty('--secondary-color', adminSettings.secondaryColor);
+  root.style.setProperty('--success-color', adminSettings.successColor);
+  root.style.setProperty('--info-color', adminSettings.infoColor);
+  root.style.setProperty('--warning-color', adminSettings.warningColor);
+  root.style.setProperty('--danger-color', adminSettings.dangerColor);
   
-  // Apply to navbar
-  const navbar = document.querySelector('.navbar');
+  // Apply to navbar - update background color
+  const navbar = document.getElementById('mainNavbar');
   if (navbar) {
     navbar.style.backgroundColor = adminSettings.primaryColor;
   }
 
-  // Apply to active nav links
+  // Apply to active nav links and theme
   const style = document.createElement('style');
   style.textContent = `
     :root {
       --primary-color: ${adminSettings.primaryColor};
       --secondary-color: ${adminSettings.secondaryColor};
+      --success-color: ${adminSettings.successColor};
+      --info-color: ${adminSettings.infoColor};
+      --warning-color: ${adminSettings.warningColor};
+      --danger-color: ${adminSettings.dangerColor};
+      --chart-color-1: ${adminSettings.chartColor1};
+      --chart-color-2: ${adminSettings.chartColor2};
+      --chart-color-3: ${adminSettings.chartColor3};
+      --chart-color-4: ${adminSettings.chartColor4};
     }
     .nav-link.active {
       background: ${adminSettings.primaryColor} !important;
@@ -53,17 +73,67 @@ export function applyThemeColors() {
     .btn-primary:hover {
       background-color: ${shadeColor(adminSettings.primaryColor, -20)} !important;
     }
+    .btn-success {
+      background-color: ${adminSettings.successColor} !important;
+      border-color: ${adminSettings.successColor} !important;
+    }
+    .btn-info {
+      background-color: ${adminSettings.infoColor} !important;
+      border-color: ${adminSettings.infoColor} !important;
+    }
+    .btn-warning {
+      background-color: ${adminSettings.warningColor} !important;
+      border-color: ${adminSettings.warningColor} !important;
+    }
+    .btn-danger {
+      background-color: ${adminSettings.dangerColor} !important;
+      border-color: ${adminSettings.dangerColor} !important;
+    }
     .modal-header {
       background-color: ${adminSettings.primaryColor} !important;
     }
     .badge.bg-primary {
       background-color: ${adminSettings.primaryColor} !important;
     }
+    .badge.bg-success {
+      background-color: ${adminSettings.successColor} !important;
+    }
+    .badge.bg-info {
+      background-color: ${adminSettings.infoColor} !important;
+    }
+    .badge.bg-warning {
+      background-color: ${adminSettings.warningColor} !important;
+    }
+    .badge.bg-danger {
+      background-color: ${adminSettings.dangerColor} !important;
+    }
     .card.primary h2 {
       color: ${adminSettings.primaryColor} !important;
     }
+    .card.success h2 {
+      color: ${adminSettings.successColor} !important;
+    }
+    .card.info h2 {
+      color: ${adminSettings.infoColor} !important;
+    }
+    .card.warning h2 {
+      color: ${adminSettings.warningColor} !important;
+    }
+    .trend-up {
+      background: rgba(${hexToRgb(adminSettings.successColor).join(',')}, 0.2);
+      color: ${adminSettings.successColor};
+    }
   `;
   document.head.appendChild(style);
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? [
+    parseInt(result[1], 16),
+    parseInt(result[2], 16),
+    parseInt(result[3], 16)
+  ] : [0, 0, 0];
 }
 
 function shadeColor(color, percent) {
@@ -157,6 +227,24 @@ $(document).ready(function() {
   if (primaryColorInput) primaryColorInput.value = adminSettings.primaryColor;
   if (secondaryColorInput) secondaryColorInput.value = adminSettings.secondaryColor;
   
+  const successColorInput = document.getElementById('successColor');
+  const infoColorInput = document.getElementById('infoColor');
+  const warningColorInput = document.getElementById('warningColor');
+  const dangerColorInput = document.getElementById('dangerColor');
+  const chartColor1Input = document.getElementById('chartColor1');
+  const chartColor2Input = document.getElementById('chartColor2');
+  const chartColor3Input = document.getElementById('chartColor3');
+  const chartColor4Input = document.getElementById('chartColor4');
+  
+  if (successColorInput) successColorInput.value = adminSettings.successColor;
+  if (infoColorInput) infoColorInput.value = adminSettings.infoColor;
+  if (warningColorInput) warningColorInput.value = adminSettings.warningColor;
+  if (dangerColorInput) dangerColorInput.value = adminSettings.dangerColor;
+  if (chartColor1Input) chartColor1Input.value = adminSettings.chartColor1;
+  if (chartColor2Input) chartColor2Input.value = adminSettings.chartColor2;
+  if (chartColor3Input) chartColor3Input.value = adminSettings.chartColor3;
+  if (chartColor4Input) chartColor4Input.value = adminSettings.chartColor4;
+  
   applySettings();
   
   const currencySelect = document.getElementById('currency');
@@ -188,12 +276,21 @@ $('#settingsForm').on('submit', function(e) {
     dateFormat: $('#dateFormat').val(),
     receiptFooter: $('#receiptFooter').val(),
     primaryColor: $('#primaryColor').val(),
-    secondaryColor: $('#secondaryColor').val()
+    secondaryColor: $('#secondaryColor').val(),
+    successColor: $('#successColor').val(),
+    infoColor: $('#infoColor').val(),
+    warningColor: $('#warningColor').val(),
+    dangerColor: $('#dangerColor').val(),
+    chartColor1: $('#chartColor1').val(),
+    chartColor2: $('#chartColor2').val(),
+    chartColor3: $('#chartColor3').val(),
+    chartColor4: $('#chartColor4').val()
   };
   
   saveToLocalStorage('adminSettings', adminSettings);
   applySettings();
   alert('Settings saved successfully!');
+  location.reload();
 });
 
 // Add import/export handlers for settings
@@ -211,7 +308,15 @@ $('#resetSettings').on('click', function() {
       dateFormat: "MM/DD/YYYY",
       receiptFooter: "Thank you for choosing us!",
       primaryColor: "#007bff",
-      secondaryColor: "#6c757d"
+      secondaryColor: "#6c757d",
+      successColor: "#1cc88a",
+      infoColor: "#36b9cc",
+      warningColor: "#f6c23e",
+      dangerColor: "#e74a3b",
+      chartColor1: "#4e73df",
+      chartColor2: "#1cc88a",
+      chartColor3: "#36b9cc",
+      chartColor4: "#f6c23e"
     };
     
     saveToLocalStorage('adminSettings', adminSettings);
@@ -221,6 +326,7 @@ $('#resetSettings').on('click', function() {
     
     applySettings();
     alert('Settings have been reset to defaults.');
+    location.reload();
   }
 });
 

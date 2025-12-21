@@ -1,4 +1,4 @@
-import NotificationManager from '/js/notifications.js';
+import NotificationManager from './notifications.js';
 
 // Store chart instances globally 
 let contributionsChart = null;
@@ -70,6 +70,13 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
     try {
       const monthlyData = {};
       const types = ['savings', 'condolence', 'education', 'health'];
+      const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
+      const chartColors = [
+        settings.chartColor1 || '#4e73df',
+        settings.chartColor2 || '#1cc88a',
+        settings.chartColor3 || '#36b9cc',
+        settings.chartColor4 || '#f6c23e'
+      ];
       
       types.forEach(type => {
         const typeContributions = contributions.filter(c => c.type === type);
@@ -82,16 +89,49 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
         type: 'bar',
         data: {
           labels: labels,
-          datasets: types.map(type => ({
+          datasets: types.map((type, index) => ({
             label: type.charAt(0).toUpperCase() + type.slice(1),
             data: labels.map(month => monthlyData[type][month] || 0),
-            backgroundColor: getColorForType(type)
+            backgroundColor: chartColors[index],
+            borderColor: chartColors[index],
+            borderWidth: 1,
+            borderRadius: 4,
+            hoverBackgroundColor: chartColors[index] + 'dd'
           }))
         },
         options: {
           responsive: true,
+          maintainAspectRatio: true,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: { size: 12, weight: '500' }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              padding: 12,
+              titleFont: { size: 13, weight: 'bold' },
+              bodyFont: { size: 12 },
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + window.formatCurrency(context.parsed.y);
+                }
+              }
+            }
+          },
           scales: {
-            x: { stacked: true },
+            x: { 
+              stacked: true,
+              grid: { display: false }
+            },
             y: { 
               stacked: true,
               ticks: {
@@ -110,6 +150,7 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
   const loansCtx = document.getElementById('loansChart');
   if (loansCtx) {
     try {
+      const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
       const loanStatuses = {
         'Active': loans.filter(l => l.status === 'active').length,
         'Completed': loans.filter(l => l.status === 'completed').length,
@@ -122,7 +163,11 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
           labels: Object.keys(loanStatuses),
           datasets: [{
             data: Object.values(loanStatuses),
-            backgroundColor: ['#36b9cc', '#1cc88a', '#e74a3b']
+            backgroundColor: [
+              settings.infoColor || '#36b9cc',
+              settings.successColor || '#1cc88a',
+              settings.dangerColor || '#e74a3b'
+            ]
           }]
         },
         options: {
@@ -141,6 +186,7 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
   const membershipCtx = document.getElementById('membershipChart');
   if (membershipCtx) {
     try {
+      const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
       const membersByMonth = groupByMonth(members.filter(m => m.status === 'approved'));
       const labels = Object.keys(membersByMonth).sort();
 
@@ -151,7 +197,8 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
           datasets: [{
             label: 'Total Members',
             data: getCumulativeData(labels, membersByMonth),
-            borderColor: '#4e73df',
+            borderColor: settings.chartColor1 || '#4e73df',
+            backgroundColor: (settings.chartColor1 || '#4e73df') + '20',
             tension: 0.1
           }]
         },
@@ -174,6 +221,7 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
   const repaymentsCtx = document.getElementById('repaymentsChart');
   if (repaymentsCtx) {
     try {
+      const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
       const repaymentData = calculateRepaymentPerformance(repayments);
 
       repaymentsChart = new Chart(repaymentsCtx, {
@@ -186,7 +234,11 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
               repaymentData.late,
               repaymentData.pending
             ],
-            backgroundColor: ['#1cc88a', '#f6c23e', '#e74a3b']
+            backgroundColor: [
+              settings.successColor || '#1cc88a',
+              settings.warningColor || '#f6c23e',
+              settings.dangerColor || '#e74a3b'
+            ]
           }]
         },
         options: {
@@ -210,11 +262,12 @@ function updateDashboardCharts(contributions, loans, members, repayments) {
 
 // Helper Functions
 function getColorForType(type) {
+  const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
   const colors = {
-    savings: '#4e73df',
-    condolence: '#1cc88a', 
-    education: '#36b9cc',
-    health: '#f6c23e'
+    savings: settings.chartColor1 || '#4e73df',
+    condolence: settings.chartColor2 || '#1cc88a', 
+    education: settings.chartColor3 || '#36b9cc',
+    health: settings.chartColor4 || '#f6c23e'
   };
   return colors[type];
 }

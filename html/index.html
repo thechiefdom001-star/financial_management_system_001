@@ -1,4 +1,4 @@
-<html><head><base href="./">
+<html><head><base href="/">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Financial Management System</title>
@@ -16,10 +16,10 @@
   <script type="importmap">
   {
     "imports": {
-      "js/models/Member.js": "js/models/Member.js",
-      "js/notifications.js": "js/notifications.js",
-      "js/registrationFeeManager.js": "js/registrationFeeManager.js",
-      "js/tableActions.js": "js/tableActions.js"
+      "/js/models/Member.js": "/js/models/Member.js",
+      "/js/notifications.js": "/js/notifications.js",
+      "/js/registrationFeeManager.js": "/js/registrationFeeManager.js",
+      "/js/tableActions.js": "/js/tableActions.js"
     }
   }
   </script>
@@ -96,18 +96,22 @@
       </div>
     </div>
     <div class="row mt-4">
-      <div class="col-md-6">
+      <div class="col-md-6 mb-4">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">Monthly Contributions</h5>
-            <canvas id="contributionsChart"></canvas>
+            <h5 class="card-title">
+              <i class="fas fa-chart-bar me-2"></i>Monthly Contributions by Type
+            </h5>
+            <canvas id="contributionsChart" style="max-height: 300px;"></canvas>
           </div>
         </div>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-6 mb-4">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">Loan Distribution</h5>
+            <h5 class="card-title">
+              <i class="fas fa-doughnut me-2"></i>Loan Distribution
+            </h5>
             <canvas id="loansChart"></canvas>
           </div>
         </div>
@@ -516,10 +520,10 @@
 <script src="js/dashboard.js" type="module"></script>
 <script src="js/receiptManager.js"></script>
 <script src="js/dataManager.js" type="module"></script>
-<script src="js/models/Member.js" type="module"></script>
-<script src="js/notifications.js" type="module"></script>
-<script src="js/registrationFeeManager.js" type="module"></script>
-<script src="js/tableActions.js" type="module"></script>
+<script src="/js/models/Member.js" type="module"></script>
+<script src="/js/notifications.js" type="module"></script>
+<script src="/js/registrationFeeManager.js" type="module"></script>
+<script src="/js/tableActions.js" type="module"></script>
 <script src="js/tableManager.js" type="module"></script>
 <script src="js/dataImportExport.js" type="module"></script>
 <script src="js/tableInit.js" type="module"></script>

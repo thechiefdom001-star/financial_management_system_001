@@ -1,8 +1,8 @@
-import MemberManager from '/js/memberManager.js';
-import NotificationManager from '/js/notifications.js';
-import ReceiptGenerator from '/js/receiptGenerator.js';
-import { adminSettings } from '/js/settings.js';
-import AuthService from '/js/authService.js';
+import MemberManager from './memberManager.js';
+import NotificationManager from './notifications.js';
+import ReceiptGenerator from './receiptGenerator.js';
+import { adminSettings } from './settings.js';
+import AuthService from './authService.js';
 
 const memberManager = new MemberManager();
 
@@ -138,6 +138,88 @@ class DataManager {
     }
   }
 
+  updateRegistrationCard() {
+    try {
+      const registrationFees = JSON.parse(localStorage.getItem('registrationFees')) || [];
+      const members = JSON.parse(localStorage.getItem('members')) || [];
+      const approvedMembers = members.filter(m => m.status === 'approved');
+      
+      const totalFeeCollected = registrationFees.length * 500;
+      const percentagePaid = approvedMembers.length > 0 ? ((registrationFees.length / approvedMembers.length) * 100).toFixed(0) : 0;
+      
+      const feeCard = document.getElementById('registrationFeeAmount');
+      const feeCount = document.getElementById('registrationFeeCount');
+      
+      if (feeCard) {
+        feeCard.innerHTML = `${window.formatCurrency(totalFeeCollected)} <span class="trend-indicator trend-up">+${percentagePaid}%</span>`;
+      }
+      if (feeCount) {
+        feeCount.textContent = `${registrationFees.length} of ${approvedMembers.length} approved members`;
+      }
+    } catch (e) {
+      console.error('Error updating registration card:', e);
+    }
+  }
+
+  updateBonusCard() {
+    try {
+      const bonuses = JSON.parse(localStorage.getItem('bonuses')) || [];
+      const approvedBonuses = bonuses.filter(b => b.status === 'approved');
+      
+      const totalBonusAwarded = approvedBonuses.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+      const percentageAwarded = bonuses.length > 0 ? ((approvedBonuses.length / bonuses.length) * 100).toFixed(0) : 0;
+      
+      const bonusCard = document.getElementById('bonusAmount');
+      const bonusCount = document.getElementById('bonusCount');
+      
+      if (bonusCard) {
+        bonusCard.innerHTML = `${window.formatCurrency(totalBonusAwarded)} <span class="trend-indicator trend-up">+${percentageAwarded}%</span>`;
+      }
+      if (bonusCount) {
+        bonusCount.textContent = `${approvedBonuses.length} of ${bonuses.length} bonuses awarded`;
+      }
+    } catch (e) {
+      console.error('Error updating bonus card:', e);
+    }
+  }
+
+  updatePerformanceCard() {
+    try {
+      const members = JSON.parse(localStorage.getItem('members')) || [];
+      const approvedMembers = members.filter(m => m.status === 'approved');
+      
+      let totalScore = 0;
+      let trackedMembers = 0;
+      
+      approvedMembers.forEach(member => {
+        const memberLoans = this.loanRepayments.filter(r => r.memberId === member.id);
+        if (memberLoans.length > 0) {
+          const onTimePayments = memberLoans.filter(r => 
+            r.status === 'paid' && r.paymentDate && new Date(r.paymentDate) <= new Date(r.dueDate)
+          ).length;
+          const score = (onTimePayments / memberLoans.length) * 100;
+          totalScore += score;
+          trackedMembers++;
+        }
+      });
+      
+      const averageScore = trackedMembers > 0 ? (totalScore / trackedMembers).toFixed(0) : 0;
+      const trend = averageScore >= 80 ? 5 : averageScore >= 60 ? 3 : 1;
+      
+      const perfCard = document.getElementById('performanceScore');
+      const perfCount = document.getElementById('performanceCount');
+      
+      if (perfCard) {
+        perfCard.innerHTML = `${averageScore}% <span class="trend-indicator trend-up">+${trend}%</span>`;
+      }
+      if (perfCount) {
+        perfCount.textContent = `${trackedMembers} of ${approvedMembers.length} members tracked`;
+      }
+    } catch (e) {
+      console.error('Error updating performance card:', e);
+    }
+  }
+
   // Populate contribution table
   populateContributionTable(type) {
     const tableId = `${type}Table`;
@@ -154,7 +236,7 @@ class DataManager {
         window.formatCurrency(contribution.amount),
         new Date(contribution.date).toLocaleDateString(),
         `<div class="action-buttons">
-          <button class="btn btn-sm btn-info print-receipt" data-id="${contribution.id}" data-type="${type}" 
+          <button class="btn btn-sm btn-info print-receipt-btn" data-id="${contribution.id}" data-type="${type}" 
                   title="Print Receipt">
             <i class="fas fa-print"></i>
           </button>
@@ -171,6 +253,26 @@ class DataManager {
     });
     
     table.draw();
+
+    // Setup event listeners for this contribution type
+    $(`#${tableId}`).off('click', '.print-receipt-btn').on('click', '.print-receipt-btn', async (e) => {
+      const contributionId = $(e.target).closest('.print-receipt-btn').data('id');
+      const contributionType = $(e.target).closest('.print-receipt-btn').data('type');
+      const contribution = this.contributionTypes[contributionType].find(c => c.id === contributionId);
+      
+      if (contribution) {
+        const member = this.getMemberById(contribution.memberId);
+        const receiptData = {
+          receiptNo: contribution.receiptNo,
+          date: contribution.date,
+          memberId: contribution.memberId,
+          memberName: member ? member.fullName : 'Unknown',
+          amount: contribution.amount,
+          type: contributionType
+        };
+        await ReceiptGenerator.printReceipt(receiptData, contributionType);
+      }
+    });
   }
 
   // Handle loan applications
@@ -841,6 +943,7 @@ class DataManager {
           this.populateRegistrationTable();
           this.populateApprovedMembersTable();
           this.populateMemberDropdowns();
+          this.updateRegistrationCard();
           form.reset();
         } else {
           NotificationManager.show('Error registering member', 'error');
@@ -935,16 +1038,33 @@ class DataManager {
       this.populatePerformanceTable();
       this.populateMemberDropdowns();
       
+      // Initialize cards with data
+      this.updateRegistrationCard();
+      this.calculateBonuses();
+      this.populateBonusTable();
+      this.updateBonusCard();
+      this.updatePerformanceCard();
+      
       // Listen for member status changes
       document.addEventListener('memberStatusChanged', () => {
         this.populateMemberDropdowns();
+        this.updateRegistrationCard();
+        this.updateBonusCard();
+        this.updatePerformanceCard();
       });
 
       this.handleRegistration();
       this.setupEventHandlers();
-      this.calculateBonuses();
-      this.populateBonusTable();
       this.initializeContributions();
+      
+      // Listen for data updates to refresh all cards
+      document.addEventListener('dataUpdated', () => {
+        setTimeout(() => {
+          this.updateRegistrationCard();
+          this.updateBonusCard();
+          this.updatePerformanceCard();
+        }, 100);
+      });
     } catch (e) {
       console.error('Error during initialization:', e);
     }
@@ -1067,12 +1187,21 @@ class DataManager {
       const table = $('#registrationTable').DataTable();
       table.clear();
       
+      // Get registration fees
+      const registrationFees = JSON.parse(localStorage.getItem('registrationFees')) || [];
+      let totalFeeCollected = 0;
+      
       memberManager.members.forEach(member => {
+        const feeRecord = registrationFees.find(f => f.memberId === member.id);
+        const feePaid = feeRecord ? true : false;
+        totalFeeCollected += feePaid ? 500 : 0;
+        
         table.row.add([
           member.id,
           member.fullName,
           member.email,
           member.phone,
+          feePaid ? `<span class="badge bg-success">KES 500 Paid</span><span style="display:none;">500</span>` : `<span class="badge bg-warning">Pending</span><span style="display:none;">0</span>`,
           member.status,
           `<div class="action-buttons">
             <button class="btn btn-sm btn-primary edit-member" data-id="${member.id}" title="Edit">
@@ -1086,11 +1215,68 @@ class DataManager {
                  <i class="fas fa-times"></i>
                </button>` : 
               ''}
+            ${!feePaid ? `
+              <button class="btn btn-sm btn-info record-reg-fee" data-id="${member.id}" title="Record Fee">
+                <i class="fas fa-money-bill-wave"></i>
+              </button>
+            ` : ''}
           </div>`
         ]);
       });
       
+      // Update registration fee card
+      const feeCard = document.querySelector('.card.info .card-text');
+      const feeCount = document.getElementById('registrationFeeCount');
+      if (feeCard) {
+        const percentagePaid = memberManager.members.length > 0 ? ((registrationFees.length / memberManager.members.length) * 100).toFixed(0) : 0;
+        feeCard.innerHTML = `${window.formatCurrency(totalFeeCollected)} <span class="trend-indicator trend-up">+${percentagePaid}%</span>`;
+      }
+      if (feeCount) {
+        feeCount.textContent = `${registrationFees.length} of ${memberManager.members.length} members registered`;
+      }
+      
+      // Add table footer total
+      const tableFooter = document.getElementById('registrationTable_wrapper');
+      if (tableFooter) {
+        const existingFooter = tableFooter.querySelector('.table-total-footer');
+        if (existingFooter) existingFooter.remove();
+      }
+      
       table.draw();
+
+      // Add event listener for record fee button
+      $('#registrationTable').off('click', '.record-reg-fee').on('click', '.record-reg-fee', async (e) => {
+        const memberId = $(e.target).closest('.record-reg-fee').data('id');
+        const member = memberManager.members.find(m => m.id === memberId);
+        
+        if (member && (await AuthService.requireLogin('record registration fee'))) {
+          const feeRecord = {
+            memberId: member.id,
+            amount: 500,
+            datePaid: new Date().toISOString(),
+            receiptNo: `REG${Date.now().toString().slice(-6)}`
+          };
+          
+          const registrationFees = JSON.parse(localStorage.getItem('registrationFees')) || [];
+          registrationFees.push(feeRecord);
+          localStorage.setItem('registrationFees', JSON.stringify(registrationFees));
+          
+          // Generate receipt
+          const receiptData = {
+            receiptNo: feeRecord.receiptNo,
+            date: feeRecord.datePaid,
+            memberId: member.id,
+            memberName: member.fullName,
+            amount: 500,
+            type: 'registration_fee'
+          };
+          
+          await ReceiptGenerator.printReceipt(receiptData, 'registration_fee');
+          this.populateRegistrationTable();
+          this.updateRegistrationCard();
+          NotificationManager.show('Registration fee recorded successfully', 'success');
+        }
+      });
     } catch (e) {
       console.error('Error populating registration table:', e);
     }
@@ -1308,6 +1494,7 @@ class DataManager {
         }
         
         this.populateBonusTable();
+        this.updateBonusCard();
         NotificationManager.show('Bonus approved successfully', 'success');
         
       } else if (btn.classList.contains('print-bonus-receipt')) {
@@ -1503,6 +1690,16 @@ class DataManager {
         if (await this.addContribution(type, contribution)) {
           e.target.reset();
           NotificationManager.show(`${type.charAt(0).toUpperCase() + type.slice(1)} contribution added successfully`, 'success');
+          
+          // Update table totals immediately
+          setTimeout(() => {
+            const tableId = `${type}Table`;
+            if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+              import('./tableManager.js').then(module => {
+                module.default.addTableFooterTotal(tableId, 2);
+              });
+            }
+          }, 100);
         }
       });
     });
@@ -1622,7 +1819,7 @@ class DataManager {
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body">
+          <div class="modal-body" id="loanDetailsContent">
             <div class="loan-info mb-4 p-3 bg-light rounded">
               <div class="row">
                 <div class="col-md-6">
@@ -1692,7 +1889,7 @@ class DataManager {
                     <th>Due Date</th>
                     <th>Amount</th>
                     <th>Status</th>
-                    <th>Action</th>
+                    <th>Payment Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1701,11 +1898,7 @@ class DataManager {
                       <td>${new Date(r.dueDate).toLocaleDateString()}</td>
                       <td>${window.formatCurrency(r.amount)}</td>
                       <td><span class="badge bg-${r.status === 'pending' ? 'warning' : r.status === 'partial' ? 'info' : 'success'}">${r.status}</span></td>
-                      <td>
-                        <button class="btn btn-xs btn-sm btn-primary view-repayment" data-id="${r.id}" title="View">
-                          <i class="fas fa-eye"></i>
-                        </button>
-                      </td>
+                      <td>${r.paymentDate ? new Date(r.paymentDate).toLocaleDateString() : '-'}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -1736,20 +1929,106 @@ class DataManager {
     });
 
     modal.querySelector('.print-loan-details-btn').addEventListener('click', () => {
-      const member = this.getMemberById(loan.memberId);
-      if (member) {
-        const receiptData = {
-          receiptNo: `LOAN${Date.now().toString().slice(-6)}`,
-          date: loan.approvalDate,
-          memberId: loan.memberId,
-          memberName: member.fullName,
-          amount: loan.amount,
-          type: 'loan_approval'
-        };
-        ReceiptGenerator.printReceipt(receiptData, 'loan_approval');
-      }
+      const contentToPrint = document.getElementById('loanDetailsContent');
+      const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
+      
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Loan Details - ${member.fullName}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+              @page { size: A4; margin: 0.5cm; }
+              body { 
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background: white;
+              }
+              .document-header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid ${settings.primaryColor || '#007bff'};
+                padding-bottom: 15px;
+              }
+              .document-header h2 {
+                color: ${settings.primaryColor || '#007bff'};
+                margin-bottom: 5px;
+              }
+              .document-header .org-info {
+                font-size: 12px;
+                color: #666;
+              }
+              .info-section {
+                margin: 15px 0;
+                padding: 10px;
+                background: #f9f9f9;
+                border-left: 3px solid ${settings.primaryColor || '#007bff'};
+              }
+              .info-section h6 {
+                color: ${settings.primaryColor || '#007bff'};
+                margin-bottom: 10px;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 15px 0;
+              }
+              th, td {
+                padding: 8px;
+                text-align: left;
+                border: 1px solid #ddd;
+              }
+              th {
+                background-color: ${settings.primaryColor || '#007bff'};
+                color: white;
+                font-weight: bold;
+              }
+              .badge {
+                padding: 3px 8px;
+                border-radius: 3px;
+                font-size: 11px;
+              }
+              .document-footer {
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid #ddd;
+                font-size: 10px;
+                color: #999;
+              }
+              @media print {
+                body { margin: 0; padding: 10px; }
+                @page { margin: 0.5cm; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="document-header">
+              <h2>${settings.systemName || 'Financial Management System'}</h2>
+              <div class="org-info">${(settings.address || 'No Address Set').split('\n')[0]}</div>
+              <div class="org-info">${settings.systemEmail || ''}</div>
+              <h5 style="margin-top: 10px; color: ${settings.primaryColor || '#007bff'};">Loan Details Report</h5>
+              <small>Generated on ${new Date().toLocaleString()}</small>
+            </div>
+            ${contentToPrint.innerHTML}
+            <div class="document-footer">
+              <p>${settings.receiptFooter || 'Thank you for choosing us!'}</p>
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(() => window.close(), 1000);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
     });
 
+    // Cleanup on modal close
     modal.addEventListener('hidden.bs.modal', () => {
       modal.remove();
     });
@@ -1846,7 +2125,7 @@ class DataManager {
               </h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" id="performanceDetailsContent">
               <div class="member-info mb-4 p-3 bg-light rounded">
                 <div class="row">
                   <div class="col-md-6">
@@ -1943,6 +2222,9 @@ class DataManager {
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-info print-performance-btn">
+                <i class="fas fa-print me-2"></i>Print Performance
+              </button>
             </div>
           </div>
         </div>
@@ -1951,6 +2233,108 @@ class DataManager {
       document.body.appendChild(modal);
       const modalInstance = new bootstrap.Modal(modal);
       modalInstance.show();
+
+      // Handle print button
+      modal.querySelector('.print-performance-btn').addEventListener('click', () => {
+        const contentToPrint = document.getElementById('performanceDetailsContent');
+        const settings = JSON.parse(localStorage.getItem('adminSettings')) || {};
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Performance Report - ${member.fullName}</title>
+              <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+              <style>
+                @page { size: A4; margin: 0.5cm; }
+                body { 
+                  font-family: Arial, sans-serif;
+                  padding: 20px;
+                  background: white;
+                }
+                .document-header {
+                  text-align: center;
+                  margin-bottom: 20px;
+                  border-bottom: 2px solid ${settings.primaryColor || '#007bff'};
+                  padding-bottom: 15px;
+                }
+                .document-header h2 {
+                  color: ${settings.primaryColor || '#007bff'};
+                  margin-bottom: 5px;
+                }
+                .document-header .org-info {
+                  font-size: 12px;
+                  color: #666;
+                }
+                .info-section {
+                  margin: 15px 0;
+                  padding: 10px;
+                  background: #f9f9f9;
+                  border-left: 3px solid ${settings.primaryColor || '#007bff'};
+                }
+                .info-section h6 {
+                  color: ${settings.primaryColor || '#007bff'};
+                  margin-bottom: 10px;
+                }
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin: 15px 0;
+                }
+                th, td {
+                  padding: 8px;
+                  text-align: left;
+                  border: 1px solid #ddd;
+                }
+                th {
+                  background-color: ${settings.primaryColor || '#007bff'};
+                  color: white;
+                  font-weight: bold;
+                }
+                .alert {
+                  padding: 10px;
+                  margin: 10px 0;
+                  border: 1px solid #ddd;
+                  background: #f9f9f9;
+                }
+                .document-footer {
+                  text-align: center;
+                  margin-top: 20px;
+                  padding-top: 15px;
+                  border-top: 1px solid #ddd;
+                  font-size: 10px;
+                  color: #999;
+                }
+                @media print {
+                  body { margin: 0; padding: 10px; }
+                  @page { margin: 0.5cm; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="document-header">
+                <h2>${settings.systemName || 'Financial Management System'}</h2>
+                <div class="org-info">${(settings.address || 'No Address Set').split('\n')[0]}</div>
+                <div class="org-info">${settings.systemEmail || ''}</div>
+                <h5 style="margin-top: 10px; color: ${settings.primaryColor || '#007bff'};">Member Performance Report</h5>
+                <small>Generated on ${new Date().toLocaleString()}</small>
+              </div>
+              ${contentToPrint.innerHTML}
+              <div class="document-footer">
+                <p>${settings.receiptFooter || 'Thank you for choosing us!'}</p>
+              </div>
+              <script>
+                window.onload = function() {
+                  window.print();
+                  setTimeout(() => window.close(), 1000);
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      });
 
       // Cleanup on modal close
       modal.addEventListener('hidden.bs.modal', () => {

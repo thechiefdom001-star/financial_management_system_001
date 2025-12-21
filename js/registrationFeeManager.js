@@ -1,4 +1,4 @@
-import ReceiptGenerator from '/js/receiptGenerator.js';
+import ReceiptGenerator from './receiptGenerator.js';
 
 class RegistrationFeeManager {
   static REGISTRATION_FEE = 500; // KES

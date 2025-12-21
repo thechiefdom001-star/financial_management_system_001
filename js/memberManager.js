@@ -1,5 +1,5 @@
-import NotificationManager from '/js/notifications.js';
-import Member from '/js/models/Member.js';
+import NotificationManager from './notifications.js';
+import Member from './models/Member.js';
 
 class MemberManager {
   constructor() {

@@ -1,4 +1,3 @@
-// This file contains code moved from dataManager.js to reduce its size
 import TableManager from './tableManager.js';
 import DataImportExport from './dataImportExport.js';
 
@@ -26,7 +25,8 @@ const tableConfig = {
     moneyColumn: 2
   },
   registrationTable: {
-    importExport: true
+    importExport: true,
+    moneyColumn: 4
   },
   approvedMembersTable: {
     importExport: true
